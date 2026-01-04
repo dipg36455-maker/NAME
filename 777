@@ -1,0 +1,446 @@
+import 'package:flutter/material.dart';
+
+void main() => runApp(const CalculatorApp());
+
+class CalculatorApp extends StatelessWidget {
+  const CalculatorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Calculator',
+      theme: ThemeData.light().copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4A6FA5),
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData.dark().copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4A6FA5),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.system,
+      debugShowCheckedModeBanner: false,
+      home: const CalculatorScreen(),
+    );
+  }
+}
+
+class CalculatorScreen extends StatefulWidget {
+  const CalculatorScreen({super.key});
+
+  @override
+  State<CalculatorScreen> createState() => _CalculatorScreenState();
+}
+
+class _CalculatorScreenState extends State<CalculatorScreen> {
+  String _display = '0';
+  String _expression = '';
+  double _firstNumber = 0;
+  String _operator = '';
+  bool _shouldResetDisplay = false;
+  bool _hasDecimal = false;
+
+  void _handleDigit(String digit) {
+    setState(() {
+      if (_shouldResetDisplay) {
+        _display = digit;
+        _shouldResetDisplay = false;
+        _hasDecimal = false;
+      } else {
+        _display = _display == '0' ? digit : _display + digit;
+      }
+    });
+  }
+
+  void _handleOperator(String operator) {
+    setState(() {
+      if (_operator.isEmpty) {
+        _firstNumber = double.parse(_display);
+        _operator = operator;
+        _expression = '${_formatNumber(_firstNumber)} $operator';
+        _shouldResetDisplay = true;
+        _hasDecimal = false;
+      } else {
+        _calculate();
+        _operator = operator;
+        _expression = '${_formatNumber(_firstNumber)} $operator';
+        _shouldResetDisplay = true;
+        _hasDecimal = false;
+      }
+    });
+  }
+
+  void _handleDecimal() {
+    setState(() {
+      if (_shouldResetDisplay) {
+        _display = '0.';
+        _shouldResetDisplay = false;
+        _hasDecimal = true;
+      } else if (!_hasDecimal) {
+        _display += '.';
+        _hasDecimal = true;
+      }
+    });
+  }
+
+  void _handleClear() {
+    setState(() {
+      _display = '0';
+      _hasDecimal = false;
+    });
+  }
+
+  void _handleAllClear() {
+    setState(() {
+      _display = '0';
+      _expression = '';
+      _firstNumber = 0;
+      _operator = '';
+      _shouldResetDisplay = false;
+      _hasDecimal = false;
+    });
+  }
+
+  void _handleDelete() {
+    setState(() {
+      if (_display.length > 1) {
+        _display = _display.substring(0, _display.length - 1);
+        if (!_display.contains('.')) {
+          _hasDecimal = false;
+        }
+      } else {
+        _display = '0';
+        _hasDecimal = false;
+      }
+    });
+  }
+
+  void _calculate() {
+    if (_operator.isEmpty) return;
+
+    double secondNumber = double.parse(_display);
+    double result = 0;
+
+    try {
+      switch (_operator) {
+        case '+':
+          result = _firstNumber + secondNumber;
+          break;
+        case '-':
+          result = _firstNumber - secondNumber;
+          break;
+        case '×':
+          result = _firstNumber * secondNumber;
+          break;
+        case '÷':
+          if (secondNumber == 0) throw Exception('Division by zero');
+          result = _firstNumber / secondNumber;
+          break;
+      }
+
+      setState(() {
+        _display = _formatNumber(result);
+        _firstNumber = result;
+        _operator = '';
+        _expression = '';
+        _shouldResetDisplay = true;
+        _hasDecimal = _display.contains('.');
+      });
+    } catch (e) {
+      setState(() {
+        _display = 'Error';
+        _expression = '';
+        _firstNumber = 0;
+        _operator = '';
+        _shouldResetDisplay = true;
+        _hasDecimal = false;
+      });
+    }
+  }
+
+  void _handleEquals() {
+    if (_operator.isNotEmpty) _calculate();
+  }
+
+  String _formatNumber(double num) {
+    String str = num.toString();
+    
+    if (str.contains('.') && !str.endsWith('.0')) {
+      List<String> parts = str.split('.');
+      if (parts[1].length > 5) {
+        return num.toStringAsFixed(5).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+      }
+      return str.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    }
+    
+    return str.split('.')[0];
+  }
+
+  Widget _buildButton({
+    required String label,
+    required VoidCallback onPressed,
+    Color? backgroundColor,
+    Color? textColor,
+    bool isLarge = false,
+    bool isOperator = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.all(6),
+      child: Material(
+        color: backgroundColor ?? Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isOperator
+              ? BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  width: 1,
+                )
+              : BorderSide.none,
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: InkWell(
+          onTap: onPressed,
+          splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+          highlightColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          child: Container(
+            width: isLarge ? 160 : 72,
+            height: 72,
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w400,
+                color: textColor ?? Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: colorScheme.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Display Section
+            Expanded(
+              flex: 35,
+              child: Container(
+                color: colorScheme.surfaceContainerHighest,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      _expression,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: colorScheme.onSurface.withOpacity(0.7),
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      child: Text(
+                        _display,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.w300,
+                          color: colorScheme.onSurface,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Buttons Section
+            Expanded(
+              flex: 65,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                color: colorScheme.surface,
+                child: Column(
+                  children: [
+                    // First row
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildButton(
+                            label: 'AC',
+                            onPressed: _handleAllClear,
+                            backgroundColor: isDark
+                                ? const Color(0xFFD32F2F)
+                                : const Color(0xFFF44336),
+                            textColor: Colors.white,
+                          ),
+                          _buildButton(
+                            label: 'C',
+                            onPressed: _handleClear,
+                            backgroundColor: isDark
+                                ? const Color(0xFFFF9800)
+                                : const Color(0xFFFFB74D),
+                            textColor: Colors.white,
+                          ),
+                          _buildButton(
+                            label: '⌫',
+                            onPressed: _handleDelete,
+                            backgroundColor: colorScheme.surfaceVariant,
+                            textColor: colorScheme.onSurfaceVariant,
+                          ),
+                          _buildButton(
+                            label: '÷',
+                            onPressed: () => _handleOperator('÷'),
+                            backgroundColor: colorScheme.primaryContainer,
+                            textColor: colorScheme.onPrimaryContainer,
+                            isOperator: true,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Second row
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildButton(
+                            label: '7',
+                            onPressed: () => _handleDigit('7'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '8',
+                            onPressed: () => _handleDigit('8'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '9',
+                            onPressed: () => _handleDigit('9'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '×',
+                            onPressed: () => _handleOperator('×'),
+                            backgroundColor: colorScheme.primaryContainer,
+                            textColor: colorScheme.onPrimaryContainer,
+                            isOperator: true,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Third row
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildButton(
+                            label: '4',
+                            onPressed: () => _handleDigit('4'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '5',
+                            onPressed: () => _handleDigit('5'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '6',
+                            onPressed: () => _handleDigit('6'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '-',
+                            onPressed: () => _handleOperator('-'),
+                            backgroundColor: colorScheme.primaryContainer,
+                            textColor: colorScheme.onPrimaryContainer,
+                            isOperator: true,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Fourth row
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildButton(
+                            label: '1',
+                            onPressed: () => _handleDigit('1'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '2',
+                            onPressed: () => _handleDigit('2'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '3',
+                            onPressed: () => _handleDigit('3'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '+',
+                            onPressed: () => _handleOperator('+'),
+                            backgroundColor: colorScheme.primaryContainer,
+                            textColor: colorScheme.onPrimaryContainer,
+                            isOperator: true,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Fifth row
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildButton(
+                            label: '0',
+                            onPressed: () => _handleDigit('0'),
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                            isLarge: true,
+                          ),
+                          _buildButton(
+                            label: '.',
+                            onPressed: _handleDecimal,
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                          ),
+                          _buildButton(
+                            label: '=',
+                            onPressed: _handleEquals,
+                            backgroundColor: colorScheme.primary,
+                            textColor: colorScheme.onPrimary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
